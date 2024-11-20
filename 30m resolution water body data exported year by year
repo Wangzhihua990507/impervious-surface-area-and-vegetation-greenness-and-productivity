@@ -11,7 +11,7 @@ function extractAndExportYearlyData(year) {
   var yearlyImage = gswYearly.filterDate(start, end)
                              .first()
                              .clip(yrb);
-  
+
   // EPSG:4326
   var reprojectedImage = yearlyImage.reproject({
     crs: 'EPSG:4326',
