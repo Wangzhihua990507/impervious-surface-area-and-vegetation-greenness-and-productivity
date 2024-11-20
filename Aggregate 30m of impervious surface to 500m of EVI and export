@@ -1,36 +1,47 @@
-// Load impervious surface data (30m resolution)
-var isa_30m = ee.Image('users/yin/YRD_ISA/YRD_2020_ISA_30m_0or1');
-
 // Load EVI data (500m resolution)
 var evi_500m = ee.Image('users/yin/YRD_EVI/Mean_EVI_3-11_2020');
 
-// Resample the impervious surface data to 500m
-var isa_500m = isa_30m
-  .reduceResolution({
-    reducer: ee.Reducer.mean(),
-    maxPixels: 1024
-  })
-  .reproject({
-    crs: evi_500m.projection()
-  });
+// Define the range of years
+var startYear = 2000;
+var endYear = 2020;
 
-// Add the resampled impervious surface data to the map
-Map.addLayer(isa_500m, {min: 0, max: 1, palette: ['gray', 'blue']}, 'Resampled ISA 500m');
+// Iterate over the specified range of years
+for (var year = startYear; year <= endYear; year++) {
+  (function(year) {
+    // Construct the asset ID for GAIA data for each year
+    var isaYearlyAssetId = 'users/yin/YRD_GAIA/YRD_GAIA_' + year;
+    
+    // Load impervious surface data for the corresponding year
+    var isaYearly = ee.Image(isaYearlyAssetId);
 
-// Add the original EVI data to the map
-Map.addLayer(evi_500m, {min: 0, max: 1, palette: ['yellow', 'green']}, 'EVI 500m');
+    // Resample impervious surface data to 500m to align with EVI data spatially
+    var isaResampled = isaYearly
+      .reduceResolution({
+        reducer: ee.Reducer.mean(),
+        maxPixels: 1024
+      })
+      .reproject({
+        crs: evi_500m.projection()
+      });
+    
+    // Define parameters for exporting to Google Drive
+    Export.image.toDrive({
+      image: isaResampled,
+      description: 'YRD_GAIA500m_' + year,
+      folder: 'YRD_GAIA',
+      scale: 500,
+      region: evi_500m.geometry(),
+      maxPixels: 1e13
+    });
 
-// Print the resampled impervious surface data and EVI data
-print('Resampled ISA 500m:', isa_500m);
-print('EVI 500m:', evi_500m);
-
-// Export the resampled impervious surface data to Google Drive
-Export.image.toDrive({
-  image: isa_500m,
-  description: 'YRD_ISA500m_2020',
-  folder: 'Impervious_Surface_Resampled_500m',
-  scale: 500,
-  region: evi_500m.geometry(),
-  fileFormat: 'GeoTIFF',
-  maxPixels: 1e13
-});
+    // Define parameters for exporting to GEE Asset
+    Export.image.toAsset({
+      image: isaResampled,
+      description: 'YRD_ISA500m_' + year,
+      assetId: 'users/giseryin/YRD_GAIA/YRD_GAIA500m_' + year,
+      scale: 500,
+      region: evi_500m.geometry(),
+      maxPixels: 1e13
+    });
+  })(year);
+}
