@@ -1,0 +1,51 @@
+// Define the Yangtze River Delta region
+var region = ee.FeatureCollection('projects/ee-yin/assets/YRD_area');
+
+// Visualization parameters
+var visualization = {
+  bands: ['population'],
+  min: 0.0,
+  max: 50.0,
+  palette: ['24126c', '1fff4f', 'd4ff50']
+};
+
+// Define a function to export and visualize population data
+function exportAndVisualizePopulation(year) {
+  var dataset = ee.ImageCollection('WorldPop/GP/100m/pop')
+                  .filter(ee.Filter.eq('country', 'CHN')) // Filter China's data
+                  .filter(ee.Filter.eq('year', year)) // Filter by year
+                  .first()
+                  .clip(region);
+
+  // Export to Google Drive
+  Export.image.toDrive({
+    image: dataset,
+    description: 'population_' + year,
+    folder: 'YRD_Worldpop_Population',
+    fileNamePrefix: 'YRD_Population' + year,
+    scale: 100,
+    region: region.geometry().bounds(),
+    maxPixels: 1e9,
+    fileFormat: 'GeoTIFF'
+  });
+  
+  // Export to GEE Asset
+  Export.image.toAsset({
+    image: dataset,
+    description: 'population_' + year,
+    assetId: 'users/giseryin/YRD_Worldpop_Population/YRD_Population_' + year,
+    scale: 100,
+    region: region.geometry().bounds(),
+    maxPixels: 1e9
+  });
+  
+  // Add to the map
+  Map.addLayer(dataset, visualization, 'Population ' + year);
+}
+
+// Loop through the years 2000-2020 and call the export and visualization function
+for (var year = 2000; year <= 2020; year++) {
+  exportAndVisualizePopulation(year);
+}
+
+
