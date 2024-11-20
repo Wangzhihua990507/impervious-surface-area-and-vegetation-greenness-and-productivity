@@ -1,0 +1,43 @@
+// Read JRC/GSW1_4/YearlyHistory
+var gswYearly = ee.ImageCollection('JRC/GSW1_4/YearlyHistory');
+
+// Read shp
+var yrb = ee.FeatureCollection('projects/ee-yin/assets/YRD_area'); 
+
+function extractAndExportYearlyData(year) {
+  var start = ee.Date.fromYMD(year, 1, 1);
+  var end = start.advance(1, 'year');
+  
+  var yearlyImage = gswYearly.filterDate(start, end)
+                             .first()
+                             .clip(yrb);
+  
+  // EPSG:4326
+  var reprojectedImage = yearlyImage.reproject({
+    crs: 'EPSG:4326',
+    //30m
+    scale: 30
+  });
+  
+  var imageName = 'YRD_Water30m_' + year.toString();
+  
+  Map.addLayer(reprojectedImage, {bands: 'waterClass', min: 0, max: 3, palette: ['ffffff', '0000ff']}, imageName, false); // 默认不显示
+  
+  // Export to Google drive
+  Export.image.toDrive({
+    image: reprojectedImage,
+    description: imageName,
+    folder: 'Surface_water', 
+    scale: 30,
+    region: yrb.geometry(),
+    fileFormat: 'GeoTIFF',
+    crs: 'EPSG:4326',
+    maxPixels: 1e9
+  });
+}
+
+for (var i = 2000; i <= 2020; i++) {
+  extractAndExportYearlyData(i);
+}
+
+Map.centerObject(yrb, 6);
