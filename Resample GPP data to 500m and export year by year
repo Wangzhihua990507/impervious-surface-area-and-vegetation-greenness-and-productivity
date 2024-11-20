@@ -1,0 +1,43 @@
+// Load EVI data
+var evi_500m = ee.Image('users/yin/YRD_EVI/Mean_EVI_3-11_2020');
+
+// Define the range of years
+var startYear = 2000;
+var endYear = 2020;
+
+// Iterate over the specified range of years
+for (var year = startYear; year <= endYear; year++) {
+  (function(year) {
+    // Construct the asset ID for yearly GPP data
+    var GPPYearlyAssetId = 'users/yin/YRD_GPP/GPPsum_' + year;
+    
+    // Load GPP data for the corresponding year
+    var GPPYearly = ee.Image(GPPYearlyAssetId);
+
+    // Resample GPP data to 500m to spatially align with EVI data
+    var GPPResampled = GPPYearly.reproject({
+      crs: evi_500m.projection().crs(),
+      scale: 500 
+    });
+    
+    // Define parameters for exporting to Google Drive
+    Export.image.toDrive({
+      image: GPPResampled,
+      description: 'GPPsum500m_' + year,
+      folder: 'YRD_GPP',
+      scale: 500,
+      region: evi_500m.geometry(),
+      maxPixels: 1e13
+    });
+
+    // Define parameters for exporting to GEE Asset
+    Export.image.toAsset({
+      image: GPPResampled,
+      description: 'GPPsum500m_' + year,
+      assetId: 'users/giseryin/YRD_GPP/GPPsum500m_' + year,
+      scale: 500,
+      region: evi_500m.geometry(),
+      maxPixels: 1e13
+    });
+  })(year);
+}
