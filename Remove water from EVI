@@ -1,0 +1,44 @@
+// Define the range of years
+var startYear = 2000;
+var endYear = 2020;
+
+// Iterate through each year
+for (var year = startYear; year <= endYear; year++) {
+  // Dynamically construct asset IDs for water and EVI data
+  var waterAssetId = 'users/yin/YRD_JCR_WATER/YRD_Water500m_' + year;
+  var imperviousSurfaceAssetId = 'users/yin/YRD_EVI/Mean_EVI_3-11_' + year;
+  
+  // Load water and EVI data
+  var waterImage = ee.Image(waterAssetId);
+  var imperviousSurfaceImage = ee.Image(imperviousSurfaceAssetId);
+  
+  // Use water data as a mask to remove water portions from impervious surface data
+  var nonWaterMask = waterImage.lte(1); 
+  
+  // Apply the mask
+  var maskedImperviousSurface = imperviousSurfaceImage.updateMask(nonWaterMask);
+  
+  // Define the export region
+  var exportRegion = maskedImperviousSurface.geometry();
+  
+  // Export the processed impervious surface data to Google Drive
+  Export.image.toDrive({
+    image: maskedImperviousSurface,
+    description: 'Masked_Mean_EVI_3-11_' + year,
+    scale: 500,
+    region: exportRegion,
+    maxPixels: 1e13,
+    folder: 'EVI_Export',
+    fileFormat: 'GeoTIFF'
+  });
+  
+  // Export the processed impervious surface data to GEE Assets
+  Export.image.toAsset({
+    image: maskedImperviousSurface,
+    description: 'Masked_Mean_EVI_3-11_' + year,
+    assetId: 'users/giseryin/YRD_EVI/Masked_Mean_EVI_3-11_' + year,
+    scale: 500,
+    region: exportRegion,
+    maxPixels: 1e13
+  });
+}
