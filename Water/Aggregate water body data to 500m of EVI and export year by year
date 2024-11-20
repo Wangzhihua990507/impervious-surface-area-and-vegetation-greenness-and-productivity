@@ -1,0 +1,47 @@
+// Read JRC/GSW1_4/YearlyHistory
+var gswYearly = ee.ImageCollection('JRC/GSW1_4/YearlyHistory');
+
+var yrb = ee.FeatureCollection('projects/ee-yin/assets/YRD_area');
+
+// EVI data
+var evi_500m = ee.Image('users/yin/YRD_EVI/Mean_EVI_3-11_2020');
+
+function extractAndExportYearlyData(year) {
+  var start = ee.Date.fromYMD(year, 1, 1);
+  var end = start.advance(1, 'year');
+  
+  var yearlyImage = gswYearly.filterDate(start, end)
+                             .first()
+                             .clip(yrb);
+  
+  var reprojectedImage = yearlyImage
+    .reduceResolution({
+      reducer: ee.Reducer.mode(),
+      maxPixels: 1024
+    })
+    .reproject({
+      crs: evi_500m.projection()
+    });
+
+  var imageName = 'YRD_Water500m_' + year.toString(); 
+  
+  Map.addLayer(reprojectedImage, {bands: 'waterClass', min: 0, max: 3, palette: ['ffffff', '0000ff']}, imageName, false);
+  
+  // to Google Drive
+  Export.image.toDrive({
+    image: reprojectedImage,
+    description: imageName,
+    folder: 'Surface_water', 
+    scale: 500,
+    region: yrb.geometry().bounds(),
+    fileFormat: 'GeoTIFF',
+    crs: 'EPSG:4326',
+    maxPixels: 1e9
+  });
+}
+
+for (var year = 2000; year <= 2020; year++) {
+  extractAndExportYearlyData(year);
+}
+
+Map.centerObject(yrb, 6)
